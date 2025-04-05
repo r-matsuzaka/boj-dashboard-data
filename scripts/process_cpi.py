@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 def transform_cpi_csv(input_csv, output_csv):
     # CSVファイルの読み込み
@@ -98,12 +98,49 @@ def transform_cpi_csv(input_csv, output_csv):
     return True
 
 if __name__ == "__main__":
-    # 単一ファイルの処理
-    input_csv = "cpi_data/CPI_2025_02_中分類指数_全国_月次_前年同月比.csv"
-    output_csv = "cpi_data/CPI_2025_02_総合_前年同月比.csv"
+    # 現在の日付から2か月前の年月を取得
+    today = datetime.now()
+    first_day_of_month = today.replace(day=1)
+    # 1か月前
+    one_month_ago = first_day_of_month - timedelta(days=1)
+    first_day_one_month_ago = one_month_ago.replace(day=1)
+    # 2か月前
+    two_months_ago = first_day_one_month_ago - timedelta(days=1)
+    
+    year = two_months_ago.year
+    month = two_months_ago.month
+    
+    # ファイル名の生成
+    input_csv = f"cpi_data/CPI_{year}_{month:02d}_中分類指数_全国_月次_前年同月比.csv"
+    output_csv = f"cpi_data/CPI_{year}_{month:02d}_総合_前年同月比.csv"
+    
+    print(f"処理対象ファイル: {input_csv}")
+    print(f"出力ファイル: {output_csv}")
     
     # ファイルが存在するか確認
     if os.path.exists(input_csv):
         transform_cpi_csv(input_csv, output_csv)
     else:
         print(f"ファイルが見つかりません: {input_csv}")
+        
+        # ファイルが見つからない場合は、ディレクトリ内から候補を探す
+        cpi_files = [f for f in os.listdir("cpi_data") if f.startswith("CPI_") and "_前年同月比.csv" in f]
+        if cpi_files:
+            print("代わりに以下のファイルが見つかりました:")
+            for f in cpi_files:
+                print(f"- {f}")
+            
+            # 最新のファイルを処理
+            latest_file = sorted(cpi_files)[-1]
+            input_csv = os.path.join("cpi_data", latest_file)
+            
+            # 出力ファイル名を調整
+            match = re.search(r'CPI_(\d{4})_(\d{2})_', latest_file)
+            if match:
+                year = match.group(1)
+                month = match.group(2)
+                output_csv = f"cpi_data/CPI_{year}_{month}_総合_前年同月比.csv"
+                
+                print(f"\n代わりに最新ファイルを処理します: {input_csv}")
+                print(f"出力ファイル: {output_csv}")
+                transform_cpi_csv(input_csv, output_csv)
