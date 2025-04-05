@@ -181,8 +181,8 @@ def download_cpi_data(year=None, month=None):
     
     if excel_url:
         # ファイル名を設定
-        excel_filename = f"CPI_{year}_{month:02d}_中分類指数_全国_月次.xlsx"
-        base_csv_name = f"CPI_{year}_{month:02d}_中分類指数_全国_月次"
+        excel_filename = f"CPI_中分類指数_全国_月次.xlsx"
+        base_csv_name = f"CPI_中分類指数_全国_月次"
         excel_path = os.path.join(data_dir, excel_filename)
         
         print(f"Excelファイルをダウンロードしています: {excel_filename}")

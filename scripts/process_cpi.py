@@ -120,8 +120,8 @@ if __name__ == "__main__":
     month = two_months_ago.month
     
     # ファイル名の生成
-    input_csv = os.path.join(script_dir, f"CPI_{year}_{month:02d}_中分類指数_全国_月次_前年同月比.csv")
-    output_csv = os.path.join(data_dir, f"CPI_{year}_{month:02d}_総合_前年同月比.csv")
+    input_csv = os.path.join(data_dir, f"CPI_中分類指数_全国_月次_前年同月比.csv")
+    output_csv = os.path.join(data_dir, f"CPI_総合_前年同月比.csv")
     
     print(f"処理対象ファイル: {input_csv}")
     print(f"出力ファイル: {output_csv}")
@@ -137,7 +137,7 @@ if __name__ == "__main__":
         
         for dir_path in possible_dirs:
             if os.path.exists(dir_path):
-                cpi_files = [f for f in os.listdir(dir_path) if f.startswith("CPI_") and "_前年同月比.csv" in f]
+                cpi_files = [f for f in os.listdir(dir_path) if f.startswith("CPI_") and "_中分類指数_全国_月次_前年同月比.csv" in f]
                 if cpi_files:
                     print(f"\n{dir_path}内に以下のファイルが見つかりました:")
                     for f in cpi_files:
