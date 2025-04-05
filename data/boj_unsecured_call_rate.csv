@@ -1,0 +1,302 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="ja" style="background-color: #ffffff;">
+<head>
+<meta http-equiv="Content-Type" content="text/html;CHARSET=Shift_JIS">
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<title>統計別検索</title>
+<script type="text/javascript" src="/ssi/docs/lib/jquery-ui/external/jquery/jquery.js"></script>
+<script type="text/javascript" src="/ssi/docs/lib/jquery-ui/jquery-ui.min.js"></script>
+<script type="text/javascript" src="/ssi/docs/js/common.js"></script>
+<script type="text/javascript" src="/ssi/docs/js/search.js"></script>
+<script type='text/javascript' src='/ssi/docs/lib/yui/yui-min.js' ></script>
+<script type="text/javascript" src="/ssi/docs/js/gcommon.js"></script>
+<LINK href="/ssi/docs/css/common.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+<DIV class="headder">
+	<DIV class="headderInner siteLogoNarrow clearfix">
+		<img class="canGotoTop" src="/ssi/docs/img/logoBackground_narrow.png" height="100%" style="float: left;" alt="日本銀行時系列統計データ検索サイトトップページ" tabindex="0" role="link"/>
+		<DIV class="hedderMenuArea2">
+			<a href="/ssi/docs/info/manual_list.html" class="smallLink icoSimpleRightArrow" target="_blank">検索・グラフ機能の使い方<span aria-label="(別ウィンドウで開く)"></span></a>
+		</DIV>
+	</DIV>
+</DIV>
+<DIV class="contents">
+	<DIV class="contentsInner">
+		<div class="frameDecorationPlane clearfix">
+			<h2  class="caption icoLoupe">統計データ検索</h2>
+			<div style="float: right; text-align: right;">
+				<a class="standardLink icoHelpBackside" onclick="help('/ssi/docs/info/nme_aphelp.html#SerchMenu')" href="#" style="line-height: 1;">ヘルプ<span aria-label="(別ウィンドウで開く)"></span></a>
+				<table class="bojLink" ><tr>
+					<td><img src="/ssi/docs/img/pointRightArrow_white.png" alt=""></td>
+					<td><a href="http://www.boj.or.jp/statistics/market/short/tankirate/index.htm/" target="_blank">関連ページ<span>（日本銀行ウェブサイトへ移動します）</span><span aria-label="(別ウィンドウで開く)"></span></a></td>
+				</tr></table>
+			</div>
+		</div>
+		<!-- タブUI部分 -->
+		<ul class="tabCaption" role="tablist">
+			<li class="select" tabindex="0" role="tab" aria-controls="menuSearchTabpanel" aria-selected="true">メニュー検索</li>
+			<li class="" tabindex="0" role="tab" aria-controls="columnNameSearchTabpanel" aria-selected="false">系列名称検索</li>
+			<li class="last-child" tabindex="0" role="tab" aria-controls="dataCodeSearchTabpanel" aria-selected="false">データコード検索</li>
+		</ul>
+		<div class="tabContent">
+			<!-- メニュー検索 -->
+			<div class="tabContentInner" style="display: block;" role="tabpanel" id="menuSearchTabpanel">
+				<div class="toggleBar clearfix">
+					<div class="toggleButtongroup" style="margin-top: 0.5em;">
+						<input class="toggleButton" id="menuSearchToggleHide" type="image" src="/ssi/docs/img/toggleHide.png" alt="メニュー画面を閉じます。"/>
+						<input class="toggleButton" id="menuSearchToggleShow" type="image" src="/ssi/docs/img/toggleShow.png" style="display: none;" alt="メニュー画面を開きます。"/>
+					</div>
+					<table>
+						<tbody>
+							<tr>
+								<th class="labelItemSelectArea">選択項目:</th>
+								<td>
+									<ul class="breadcrumb" id="breadcrumb" style="margin: 0em 0em 0em -2.5em;">
+										<li style="display: inline;"><a class="breadcrumbItem currentItem" href="" onClick="breadcrumbClick(this); return false;" data-echelon=""><strong>短期金融市場金利</strong></a>
+										</li>
+									</ul>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+				<div class="searchCondition">
+					<!-- 下層がある場合に表示するメニュー画面 -->
+					<div class="nodeMenu">
+						<p><strong>項目を選択してください</strong></p>
+						<div class="selectMenuItem">
+							<table class="menuSelect">
+								<colgroup>
+									<col class="codeColumn">
+									<col>
+								</colgroup>
+								<tbody>
+								</tbody>
+							</table>
+						</div>
+						<div class="resultCountPanel clearfix">
+							<input class="buttonExpand normalButton" onclick="expandMenu();" type="button" value="展開" />
+							<div style="float: right;">
+								<p>検索件数は【<span class="searchResultCount">0</span>】件です。</p>
+							</div>
+						</div>
+					</div>
+					<!-- 最下層の場合に表示するメニュー画面 -->
+					<div class="leafMenu" style="display: none;">
+						<p><strong>データ系列を選択し、「抽出条件に追加」ボタンを押してください（一度に250系列まで追加可能）</strong></p>
+						<span class="comment annotation">複数選択をする場合は、「SHIFT」キーを押しながらクリックしてください。</span>
+						<div class="tableDataCodeHeader">
+							<input type="checkbox" class="normalCheckbox" id="menuSearchDataCodeListSelectAll" onclick="selectRecordAll('#menuSearchDataCodeList', $('#menuSearchDataCodeListSelectAll').prop('checked'))"/><label for="menuSearchDataCodeListSelectAll">全てのデータ系列を選択する</label>
+						</div>
+						<div class="tableArea">
+							<table class="tableDataCode" id="menuSearchDataCodeList">
+								<tbody>
+								</tbody>
+							</table>
+						</div>
+						<div class="resultCountPanel clearfix">
+							<p>選択件数【<span id="menuSearchDataCodeListSelectedCount">0</span>】件   /   検索件数【<span id="menuSearchDataCodeListCount">0</span>】件</p>
+						</div>
+						<div style="text-align: center">
+							<a href="" class="largeButton largeButton-downArrow" onclick="addAbstractCondition('#menuSearchDataCodeList'); return false;" >抽出条件に追加</a>
+						</div>
+					</div>
+				</div>
+				<div class="tabPaddingBottom"></div>
+			</div>
+			<!-- 系列名称検索 -->
+			<div class="tabContentInner hide" style="display: none;" role="tabpanel" id="columnNameSearchTabpanel">
+				<div class="toggleBar clearfix">
+					<div class="toggleBarHeaderRightArea">
+						<input class="toggleButton" id="keywordSearchToggleHide" type="image" src="/ssi/docs/img/toggleHide.png" alt="メニュー画面を閉じます。"/>
+						<input class="toggleButton" id="keywordSearchToggleShow" type="image" src="/ssi/docs/img/toggleShow.png" style="display: none" alt="メニュー画面を開きます。"/>
+					</div>
+					<div class="toggleBarHeaderLeftArea">
+						<label for="txtkeiretu1">
+							<span class="toggleBarInnerParagraph">キーワードを入力してください</span>
+						</label>
+						<span class="comment annotation toggleBarInnerComment">キーワードはスペース区切りで複数入力できます。部分一致検索が可能です。</span>
+						<input type="text" name="txtkeiretu1" size="65" maxlength="60" value="" class="toggleBarInnerTextBox" id="txtkeiretu1" title="キーワード入力欄">
+						<input type="hidden" name="txtkretu_hd" size="65" maxlength="60" value="">
+						<input id="keywordSearchButton" class="toggleBarInnnerButton" type="button" value="検索" onclick="chk_input()" style="background: #50CBC2; border: 1px solid #50CBC2; color: #000000;">
+					</div>
+				</div>
+				<div class="searchCondtion">
+					<p class="searchCondtionInnerParagraph"><strong>データ系列を選択し、「抽出条件に追加」ボタンを押してください（一度に250系列まで追加可能）</strong></p>
+					<span class="comment annotation searchCondtionInnerComment">複数選択をする場合は、「SHIFT」キーを押しながらクリックしてください。 </span>
+
+
+					<div class="tableDataCodeHeader">
+						<input type="checkbox" class="normalCheckbox" id="dataSeriesSearchDataCodeListSelectAll" onclick="selectRecordAll('#dataSeriesSearchDataCodeList', $('#dataSeriesSearchDataCodeListSelectAll').prop('checked'))"/><label for="dataSeriesSearchDataCodeListSelectAll">全てのデータ系列を選択する</label>
+					</div>
+					<div class="tableArea">
+						<table class="tableDataCode" id="dataSeriesSearchDataCodeList">
+							<tbody>
+							</tbody>
+						</table>
+					</div>
+					<div class="resultCountPanel clearfix">
+						<p style="display: inline-block;">選択件数【<span id="dataSeriesSearchDataCodeListSelectedCount">0</span>】件   /   検索件数【<span id="dataSeriesSearchDataCodeListCount">0</span>】件（1000件まで表示可能）</p>
+						<div class="resultCountPanelMessageArea" id="keywordSearchMessageArea" style="display: none">
+							<p class="warningMessage"><strong><span class="keywordSerchcount">1000</span>件を超える結果は表示できません。</strong></p>
+						</div>
+					</div>
+					<div style="text-align: center">
+						<a href="" class="largeButton largeButton-downArrow" id="columnNameSearch" onclick="addAbstractCondition('#dataSeriesSearchDataCodeList'); return false;" >抽出条件に追加</a>
+					</div>
+				</div>
+				<div class="tabPaddingBottom"></div>
+			</div>
+			<!-- データコード検索 -->
+			<div class="tabContentInner hide" style="display: none;" role="tabpanel" id="dataCodeSearchTabpanel">
+				<div class="toggleBar clearfix">
+					<div class="toggleButtongroup">
+						<input class="toggleButton" id="dataCodeSearchToggleHide" type="image" src="/ssi/docs/img/toggleHide.png" alt="メニュー画面を閉じます。"/>
+						<input class="toggleButton" id="dataCodeSearchToggleShow" type="image" src="/ssi/docs/img/toggleShow.png" style="display: none" alt="メニュー画面を開きます。"/>
+					</div>
+					<div style="float: left; width:95%;">
+						<label id="search">
+							<span class="toggleBarInnerParagraph">データコード（一部でも可）を入力してください</span>
+						</label>
+						<br>
+						<span class="comment annotation toggleBarInnerComment">前方一致（例：「IR01'MA*」）、中間一致（例：「*MA*」）、後方一致（例：「*01」）の場合は左欄のみに入力、またはFrom To 検索が可能です。</span>
+						<input type="TEXT" class="dataCodeSearchTextBox" name="txtSerchFrom" size="20" maxlength="74" value="" aria-labelledby="search" title="データコード入力欄（from）"/>
+						<span class="toggleBarInnerParagraph">～</span>
+						<input type="TEXT" class="dataCodeSearchTextBox" name="txtSerchTo" size="20"  maxlength="74" value="" aria-labelledby="search" title="データコード入力欄（to）"/>
+						<input class="normalButton searchButton" id="dataCodeSearchButton" type="button" onclick="disable_submit()" value="検索" style="background: #50CBC2; border: 1px solid #50CBC2; color: #000000;">
+					</div>
+				</div>
+				<div class="searchCondtion">
+					<p class="searchCondtionInnerParagraph"><strong>データ系列を選択し、「抽出条件に追加」ボタンを押してください（一度に250系列まで追加可能）</strong></p>
+					<span class="comment annotation searchCondtionInnerComment">複数選択をする場合は、「SHIFT」キーを押しながらクリックしてください。 </span>
+					<div class="tableDataCodeHeader">
+						<input type="checkbox" class="normalCheckbox" id="dataCodeSearchDataCodeListSelectAll" onclick="selectRecordAll('#dataCodeSearchDataCodeList', $('#dataCodeSearchDataCodeListSelectAll').prop('checked'))"/><label for="dataCodeSearchDataCodeListSelectAll">全てのデータ系列を選択する</label>
+					</div>
+					<div class="tableArea">
+						<table class="tableDataCode" id="dataCodeSearchDataCodeList">
+							<tbody>
+							</tbody>
+						</table>
+					</div>
+					<div class="resultCountPanel clearfix">
+						<p style="display: inline-block">選択件数【<span id="dataCodeSearchDataCodeListSelectedCount">0</span>】件   /   検索件数【<span id="dataCodeSearchDataCodeListCount">0</span>】件（1000件まで表示可能）</p>
+						<div class="resultCountPanelMessageArea" id="dataCodeSearchMessageArea" style="display: none">
+							<p class="warningMessage"><span id="dataCodeSerchcount">1000</span>件を超える結果は表示できません。</p>
+						</div>
+					</div>
+					<div style="text-align: center">
+						<a href="" class="largeButton largeButton-downArrow" id="dataCodeSearch" onclick="addAbstractCondition('#dataCodeSearchDataCodeList'); return false;">抽出条件に追加</a>
+					</div>
+				</div>
+				<div class="tabPaddingBottom"></div>
+			</div>
+		</div>
+	</div>
+	<!-- 抽出条件エリア -->
+	<form name="nme_A000_form" action="/ssi/cgi-bin/famecgi2" method="POST" enctype="application/x-www-form-urlencoded" target="_blank">
+	<input type="hidden" name="cgi" value="$nme_r000">
+	<div class="contentsInner abstractionArea">
+		<div class="guide">
+			<div></div>
+		</div>
+		<div id="resultArea">
+			<h2  class="caption icoAbstraction">抽出条件</h2>
+			<div id="dataCode">
+				<h3 class="strapline">１．抽出対象データコード</h3>
+				<div class="tableDataCodeHeader">
+					<input type="checkbox" class="normalCheckbox" id="abstractionTargetDataCodeSelectAll" onclick="selectRecordAll('#abstractionTargetDataCodeList', $('#abstractionTargetDataCodeSelectAll').prop('checked'))"/><label for="abstractionTargetDataCodeSelectAll">全てのデータ系列を選択する</label>
+				</div>
+				<div class="tableArea">
+					<table class="tableTargetDataCode" id="abstractionTargetDataCodeList">
+						<tbody>
+						</tbody>
+					</table>
+				</div>
+				<p style="margin-top: 0">抽出対象件数【<span id="abstractionTargetDataCodeListSelectedCount">0</span>】件   /   検索件数【<span id="abstractionTargetDataCodeListCount">0</span>】件</p>
+				<ul class="cautions-list">
+					<li>
+						<span class="comment annotation">一度に250系列まで「抽出」が可能です。 </span>
+					</li>
+					<li>
+						<span class="comment annotation">一度に18系列まで「グラフ描画」が可能です。 </span>
+					</li>
+				</ul>
+			</div>
+			<div id="term">
+				<h3 class="strapline">２．抽出対象期間</h3>
+				<input class="normalTextBox normalTextBox-inputYear" id="fromYear" type="text" name="txtYyyyFrom" maxlength="4" placeholder="YYYY" title="抽出対象期間入力欄（開始年）">
+					<span> 年から </span>
+				<input class="normalTextBox normalTextBox-inputYear" id="toYear"  type="text" name="txtYyyyTo" maxlength="4" placeholder="YYYY" title="抽出対象期間入力欄（終了年）">
+					<span> 年まで＜未入力時：直近５年、日次は直近１年＞ </span>
+				<br>
+			</div>
+			<div id="convert">
+				<h3 class="strapline">３．期種変換</h3>
+				<label for="cmbFREQ">
+					<span>変換後期種:</span>
+				</label>
+				<select class="normalListBox" name="cmbFREQ" onchange="changeCmbFREQ(this.form)" id="cmbFREQ" title="変換後期種選択欄">
+					<option value="NONE" selected   >変換なし</option>
+					<option value="ANNUAL"          >暦年</option>
+					<option value="ANNUAL(MAR)"     >年度</option>
+					<option value="SEMIANNUAL"      >暦年半期</option>
+					<option value="SEMIANNUAL(SEP)" >年度半期</option>
+					<option value="QUARTERLY"       >四半期</option>
+					<option value="MONTHLY"         >月次</option>
+				</select>
+				<label for="cmbFREQ_OPTION">
+					<span style="margin-left: 2em;">期種変換方法:</span>
+				</label>
+				<select class="normalListBox" name="cmbFREQ_OPTION" onchange="changeCmbFREQ_OPTION(this.form)" id="cmbFREQ_OPTION" title="期種変換方法選択欄">
+					<option value="NONE" selected   >指定なし</option>
+					<option value="SUMMED"          >合計</option>
+					<option value="AVERAGED"        >平均</option>
+					<option value="END"             >期末</option>
+					<option value="HIGH"            >最高</option>
+					<option value="LOW"             >最低</option>
+					<option value="BEGINNING"       >期初</option>
+				</select>
+			</div>
+			<p class="comment annotation">当サイト内のシステムで機械処理しているため、算出値が実際の公表値と異なる場合があります。</p>
+			<div class="abstractionMenuArea clearfix">
+				<ul style="float: left; margin: 0px 0px 0px -2.5em;">
+					<li style="display: inline;"><a class="middleButton largeButton-rightArrow" onclick="submit_code_main(document.nme_A000_form)" tabindex="0" onkeypress="submit_code_main(document.nme_A000_form)">抽出<span aria-label="(別ウィンドウで開く)"></span></a></li>
+					<li style="display: inline;"><a class="middleButton largeButton-rightArrow" onclick='viewGraph_a000(document.nme_A000_form)' tabindex="0" onkeypress="viewGraph_a000(document.nme_A000_form)">グラフ<span aria-label="(別ウィンドウで開く)"></span></a></li>
+				</ul>
+				<div style="float: right">
+					<a class="middleButton largeButton-clear" onClick="clearCondition();" tabindex="0" onkeypress="clearCondition();">クリア</a>
+				</div>
+			</div>
+		</div>
+	</DIV>
+	<input type="hidden" name="obj_name" value="FM02">
+	</form>
+</DIV>
+<DIV class="footer">
+	<DIV class="footerInner">
+		<DIV class="clearfix">
+			<ul style="float: left; margin: 0px 0px 0px -2.5em;">
+				<li style="display: inline;"><a href="/ssi/docs/info/nme_aphelp.html" class="footerLink footerLinkRightMargin icoSimpleRightArrow" target="_blank">データ検索の手引き<span aria-label="(別ウィンドウで開く)"></span></a></li>
+				<li style="display: inline;"><a href="/ssi/docs/info/notice.html" class="footerLink footerLinkRightMargin icoSimpleRightArrow" target="_blank">サイトのご利用上の留意点等<span aria-label="(別ウィンドウで開く)"></span></a></li>
+				<li style="display: inline;"><a href="/ssi/docs/info/nme_aphelp.html#Other" class="footerLink footerLinkRightMargin icoSimpleRightArrow" target="_blank">お問い合せ<span aria-label="(別ウィンドウで開く)"></span></a></li>
+				<li style="display: inline;"><a href="/ssi/docs/sitemap.html" class="footerLink footerLinkRightMargin icoSimpleRightArrow" target="_blank">サイトマップ<span aria-label="(別ウィンドウで開く)"></span></a></li>
+			</ul>
+			<DIV style="float: right;">
+				<DIV style="height:2.5em;">
+					<a href="http://www.boj.or.jp/index.html" target="_blank" class="footerLink icoSimpleRightArrow">日本銀行ウェブサイト<span aria-label="(別ウィンドウで開く)"></span></a>
+				</DIV>
+			</DIV>
+		</DIV>
+		<span class="comment" lang="en">Copyright Bank of Japan All Rights Reserved.</span>
+	</DIV>
+</DIV>
+<div id="waitingView" style="display: none;"><div id="waitingViewInner" unselectable="on"><img src="/ssi/docs/img/wait.gif" alt="暫くお待ちください。"></div></div>
+<script>
+	//1階層目のデータ取得
+	$(window).ready(function(){
+		breadcrumbClick(null);
+	})
+</script>
+</body>
+</html>
