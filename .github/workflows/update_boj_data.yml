@@ -30,33 +30,20 @@ jobs:
         python scripts/get_boj_unsecured_call_rate.py
         python scripts/get_boj_corporate_price_index.py
         
+    - name: List files in data directory
+      run: |
+        ls -la data/
+        
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: boj-data
         path: data/*.csv
         retention-days: 7
         
-    - name: Create Commit Message
-      id: commit-msg
-      run: |
-        echo "::set-output name=message::Update BOJ data $(date +'%Y-%m-%d')"
-        
-    - name: Check if CSV files have changes
-      id: git-check
-      run: |
-        git add data/*.csv
-        git status --porcelain
-        echo "::set-output name=changes::$(git status --porcelain | grep -q 'data/' && echo 'true' || echo 'false')"
-        
-    - name: Setup Git Config
-      if: steps.git-check.outputs.changes == 'true'
+    - name: Commit Changes
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        
-    - name: Commit and Push if there are changes
-      if: steps.git-check.outputs.changes == 'true'
-      run: |
-        git commit -m "${{ steps.commit-msg.outputs.message }}"
-        git push
+        git add data/*.csv
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Update BOJ data $(date +'%Y-%m-%d')" && git push)
