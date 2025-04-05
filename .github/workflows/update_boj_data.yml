@@ -1,0 +1,62 @@
+name: Update BOJ Data
+
+on:
+  schedule:
+    # 毎週月曜日の午前3時(UTC)に実行
+    - cron: '0 3 * * 1'
+  # 手動実行用のトリガー
+  workflow_dispatch:
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run data download scripts
+      run: |
+        python scripts/get_boj_unsecured_call_rate.py
+        python scripts/get_boj_corporate_price_index.py
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: boj-data
+        path: data/*.csv
+        retention-days: 7
+        
+    - name: Create Commit Message
+      id: commit-msg
+      run: |
+        echo "::set-output name=message::Update BOJ data $(date +'%Y-%m-%d')"
+        
+    - name: Check if CSV files have changes
+      id: git-check
+      run: |
+        git add data/*.csv
+        git status --porcelain
+        echo "::set-output name=changes::$(git status --porcelain | grep -q 'data/' && echo 'true' || echo 'false')"
+        
+    - name: Setup Git Config
+      if: steps.git-check.outputs.changes == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+    - name: Commit and Push if there are changes
+      if: steps.git-check.outputs.changes == 'true'
+      run: |
+        git commit -m "${{ steps.commit-msg.outputs.message }}"
+        git push

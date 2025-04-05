@@ -1,0 +1,22 @@
+# 一般的な一時ファイルを無視
+*.log
+*.swp
+*~
+.DS_Store
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# data ディレクトリ内のすべてのファイルを無視（ディレクトリ自体は保持）
+data/*
+
+# data ディレクトリ自体は保持するための空の .gitkeep ファイルは無視しない
+!data/.gitkeep
