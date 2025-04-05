@@ -98,6 +98,15 @@ def transform_cpi_csv(input_csv, output_csv):
     return True
 
 if __name__ == "__main__":
+    # プロジェクトのルートディレクトリへのパスを設定
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    data_dir = os.path.join(project_root, "data")
+    
+    # dataディレクトリが存在しない場合は作成
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+    
     # 現在の日付から2か月前の年月を取得
     today = datetime.now()
     first_day_of_month = today.replace(day=1)
@@ -111,8 +120,8 @@ if __name__ == "__main__":
     month = two_months_ago.month
     
     # ファイル名の生成
-    input_csv = f"cpi_data/CPI_{year}_{month:02d}_中分類指数_全国_月次_前年同月比.csv"
-    output_csv = f"cpi_data/CPI_{year}_{month:02d}_総合_前年同月比.csv"
+    input_csv = os.path.join(script_dir, f"CPI_{year}_{month:02d}_中分類指数_全国_月次_前年同月比.csv")
+    output_csv = os.path.join(data_dir, f"CPI_{year}_{month:02d}_総合_前年同月比.csv")
     
     print(f"処理対象ファイル: {input_csv}")
     print(f"出力ファイル: {output_csv}")
@@ -123,24 +132,29 @@ if __name__ == "__main__":
     else:
         print(f"ファイルが見つかりません: {input_csv}")
         
-        # ファイルが見つからない場合は、ディレクトリ内から候補を探す
-        cpi_files = [f for f in os.listdir("cpi_data") if f.startswith("CPI_") and "_前年同月比.csv" in f]
-        if cpi_files:
-            print("代わりに以下のファイルが見つかりました:")
-            for f in cpi_files:
-                print(f"- {f}")
-            
-            # 最新のファイルを処理
-            latest_file = sorted(cpi_files)[-1]
-            input_csv = os.path.join("cpi_data", latest_file)
-            
-            # 出力ファイル名を調整
-            match = re.search(r'CPI_(\d{4})_(\d{2})_', latest_file)
-            if match:
-                year = match.group(1)
-                month = match.group(2)
-                output_csv = f"cpi_data/CPI_{year}_{month}_総合_前年同月比.csv"
-                
-                print(f"\n代わりに最新ファイルを処理します: {input_csv}")
-                print(f"出力ファイル: {output_csv}")
-                transform_cpi_csv(input_csv, output_csv)
+        # 3つの可能なディレクトリをチェック
+        possible_dirs = [script_dir, os.path.join(script_dir, "cpi_data"), data_dir]
+        
+        for dir_path in possible_dirs:
+            if os.path.exists(dir_path):
+                cpi_files = [f for f in os.listdir(dir_path) if f.startswith("CPI_") and "_前年同月比.csv" in f]
+                if cpi_files:
+                    print(f"\n{dir_path}内に以下のファイルが見つかりました:")
+                    for f in cpi_files:
+                        print(f"- {f}")
+                    
+                    # 最新のファイルを処理
+                    latest_file = sorted(cpi_files)[-1]
+                    input_csv = os.path.join(dir_path, latest_file)
+                    
+                    # 出力ファイル名を調整
+                    match = re.search(r'CPI_(\d{4})_(\d{2})_', latest_file)
+                    if match:
+                        year = match.group(1)
+                        month = match.group(2)
+                        output_csv = os.path.join(data_dir, f"CPI_{year}_{month}_総合_前年同月比.csv")
+                        
+                        print(f"\n代わりに最新ファイルを処理します: {input_csv}")
+                        print(f"出力ファイル: {output_csv}")
+                        transform_cpi_csv(input_csv, output_csv)
+                        break

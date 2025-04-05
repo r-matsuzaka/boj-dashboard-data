@@ -11,9 +11,13 @@ import sys
 # ベースURL
 base_url = 'https://www.e-stat.go.jp'
 
-# ダウンロードしたファイルを保存するディレクトリ
-download_dir = 'cpi_data'
-os.makedirs(download_dir, exist_ok=True)
+# プロジェクトのルートディレクトリとデータディレクトリの設定
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+data_dir = os.path.join(project_root, "data")
+
+# データディレクトリが存在しない場合は作成
+os.makedirs(data_dir, exist_ok=True)
 
 # 現在の年月から2か月前を計算する関数
 def get_two_months_ago():
@@ -38,7 +42,7 @@ def download_file(url, filename):
     response = requests.get(url, stream=True)
     response.raise_for_status()
     
-    file_path = os.path.join(download_dir, filename)
+    file_path = os.path.join(data_dir, filename)
     with open(file_path, 'wb') as file:
         for chunk in response.iter_content(chunk_size=8192):
             file.write(chunk)
@@ -76,7 +80,7 @@ def convert_excel_to_csv(excel_file, base_name):
                 sheet_suffix = ""
                 
             csv_filename = f"{base_name}{sheet_suffix}.csv"
-            csv_path = os.path.join(download_dir, csv_filename)
+            csv_path = os.path.join(data_dir, csv_filename)
             
             # CSVに変換して保存
             df.to_csv(csv_path, index=False, encoding='utf-8')
@@ -179,7 +183,7 @@ def download_cpi_data(year=None, month=None):
         # ファイル名を設定
         excel_filename = f"CPI_{year}_{month:02d}_中分類指数_全国_月次.xlsx"
         base_csv_name = f"CPI_{year}_{month:02d}_中分類指数_全国_月次"
-        excel_path = os.path.join(download_dir, excel_filename)
+        excel_path = os.path.join(data_dir, excel_filename)
         
         print(f"Excelファイルをダウンロードしています: {excel_filename}")
         print(f"URL: {excel_url}")
