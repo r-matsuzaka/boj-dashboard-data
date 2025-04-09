@@ -51,12 +51,14 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: economic-data
-        path: data/*.csv
+        path: |
+          data/*.csv
+          data/*.xlsx
         retention-days: 7
         
     - name: Commit Changes
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add data/*.csv
+        git add data/*.csv data/*.xlsx
         git diff --quiet && git diff --staged --quiet || (git commit -m "Update economic data $(date +'%Y-%m-%d')" && git push)
