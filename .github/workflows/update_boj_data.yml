@@ -1,4 +1,4 @@
-name: Update BOJ, CPI and Real Estate Data
+name: Update BOJ, CPI, Payroll and Real Estate Data
 
 on:
   schedule:
@@ -37,6 +37,11 @@ jobs:
       run: |
         python scripts/get_cpi.py
         python scripts/process_cpi.py
+        
+    - name: Run Payroll data download and processing scripts
+      run: |
+        python scripts/get_payroll.py
+        python scripts/process_payroll.py
         
     - name: Run Real Estate data download and processing
       run: |
