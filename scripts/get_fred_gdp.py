@@ -45,7 +45,6 @@ def main():
     
     if not api_key:
         print("エラー: FRED_API_KEYが環境変数に設定されていません。")
-        print("現在の環境変数:", os.environ.keys())
         return
     
     # データディレクトリが存在しない場合は作成
