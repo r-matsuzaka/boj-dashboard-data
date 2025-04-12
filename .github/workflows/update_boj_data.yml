@@ -1,5 +1,4 @@
-name: Update BOJ, CPI, Payroll, Real Estate and DI Data
-
+name: Update Economic Data
 on:
   schedule:
     # 毎週月曜日の午前3時(UTC)に実行
@@ -52,6 +51,12 @@ jobs:
       run: |
         python scripts/get_di.py
         python scripts/process_di.py
+        
+    - name: Run FRED GDP data download and processing
+      env:
+        FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+      run: |
+        python scripts/get_fred_gdp.py
         
     - name: List files in data directory
       run: |
