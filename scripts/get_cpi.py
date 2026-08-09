@@ -68,6 +68,97 @@ def download_file(url, filename):
             file.write(chunk)
     return file_path
 
+# e-Statの統計表一覧のDOM構造
+#
+# 一覧は<table>/<tr>ではなく、article + ul/li で組まれた擬似テーブル。
+# 1つのarticleが1レコードで、2つのliを持つ。
+#
+#   div.stat-dataset_list
+#     article.stat-dataset_list-item          ← 1レコード
+#       ul.stat-dataset_list-detail
+#         li.stat-dataset_list-detail-item    ← [0] 表番号セル
+#           span.stat-sp "表番号"             （スマホ用ラベル）
+#           span         "1-1"                （class無し = 表番号本体）
+#         li.stat-dataset_list-detail-item    ← [1] 本体行
+#           span         "中分類指数（全国）"
+#           a.js-data    "月次"               （2階層の表では周期）
+#           span.stat-sp "調査年月" + "2026年6月"
+#           a.js-dl.stat-icon_0               ← EXCEL本体 (fileKind=0)
+#           a.js-dl.stat-icon_4               ← EXCEL閲覧用 (fileKind=4)
+#           a.stat-database_icon              ← DB（js-dlを持たない）
+#
+# 同じ表番号でも 月次 / 年平均 / 年度平均 は別のarticleに分かれる。
+DATASET_ITEM_SELECTOR = 'article.stat-dataset_list-item'
+DETAIL_ITEM_SELECTOR = 'li.stat-dataset_list-detail-item'
+
+def _text_of(element):
+    return element.get_text(strip=True) if element is not None else ''
+
+def extract_table_number(article):
+    """articleの1つ目のliから表番号（例: '1-1'）を取り出す。
+
+    スマホ用ラベル <span class="stat-sp">表番号</span> が先行するため、
+    class無しのspanだけを見る。
+    """
+    detail_items = article.select(DETAIL_ITEM_SELECTOR)
+    if not detail_items:
+        return ''
+
+    for span in detail_items[0].find_all('span'):
+        if 'stat-sp' in (span.get('class') or []):
+            continue
+        text = _text_of(span)
+        if text:
+            return text
+    return ''
+
+def has_cycle(article, cycle):
+    """周期（月次 / 年平均 / 年度平均）が完全一致で含まれるかを判定する。
+
+    周期テキストの置き場所は表の階層の深さで変わる。
+      2階層の表（1-1など）: a.js-data のテキストが周期そのもの
+      3階層の表（4-1など）: class無しのspanが周期で、a.js-dataは末端の品目名
+    そのため要素の種類を限定せず、完全一致で探す。
+
+    部分一致にすると「年平均」が「年度平均」に引っかかる危険があるため、
+    必ず完全一致で比較する。
+    """
+    for element in article.find_all(['a', 'span']):
+        if _text_of(element) == cycle:
+            return True
+    return False
+
+def find_excel_link(article):
+    """EXCEL本体（fileKind=0）のダウンロードリンクを返す。
+
+    同じ行に「EXCEL閲覧用」(stat-icon_4) と「DB」(stat-database_icon) が
+    並ぶため、EXCEL種別(stat-icon_0)とダウンロード(js-dl)の2クラスで絞る。
+    クラスの完全一致ではないので、クラスの増減や順序変更に影響されない。
+    """
+    return article.select_one('a.js-dl.stat-icon_0')
+
+def dump_page_structure(soup, limit=15):
+    """抽出に失敗したときに一覧の構造をログへ出す。
+
+    構造が変わった際、ログだけで原因を特定できるようにするための診断。
+    これが無いと「ダウンロードリンクが見つかりませんでした」の一行しか
+    残らず、ブラウザでDOMを見に行くまで原因が分からない。
+    """
+    print("--- 一覧の構造ダンプ（診断用） ---")
+    articles = soup.select(DATASET_ITEM_SELECTOR)
+    print(f"{DATASET_ITEM_SELECTOR}: {len(articles)}件")
+    print(f"a.js-dl: {len(soup.select('a.js-dl'))}件 / "
+          f"a.js-dl.stat-icon_0: {len(soup.select('a.js-dl.stat-icon_0'))}件")
+    print(f"<tr>: {len(soup.find_all('tr'))}個（一覧は擬似テーブルのため0でも異常ではない）")
+
+    for article in articles[:limit]:
+        cycles = [c for c in ('月次', '年平均', '年度平均') if has_cycle(article, c)]
+        link = find_excel_link(article)
+        print(f"  表番号={extract_table_number(article)!r} 周期={cycles} "
+              f"EXCEL={link.get('href') if link else None}")
+    if len(articles) > limit:
+        print(f"  ... 他 {len(articles) - limit} 件")
+
 # ダウンロードしたExcelが目的の年月の月次データか検証する関数
 def verify_excel_contents(excel_file, year, month):
     """ブックのどこかに「{year}年{month}月」が含まれることを確認する。
@@ -194,34 +285,36 @@ def download_cpi_data(year=None, month=None):
         return None
 
     # Excelダウンロードリンクを検索
+    articles = soup.select(DATASET_ITEM_SELECTOR)
+    print(f"データセット一覧の件数: {len(articles)}")
     excel_url = None
 
-    # 方法1: 表1-1の中分類指数を探す
-    tables = soup.find_all('table')
-    for table in tables:
-        rows = table.find_all('tr')
-        for row in rows:
-            # 表番号1-1を探す
-            table_num = row.find('td', class_='stat-table_number')
-            if table_num and table_num.text.strip() == '1-1':
-                # Excelリンクを探す
-                # クラスの完全一致ではなく、EXCEL種別(stat-icon_0)とダウンロード(js-dl)の
-                # 2クラスで絞る。クラスの増減や順序変更に影響されない。
-                excel_links = row.select('a.stat-icon_0.js-dl')
-                if excel_links:
-                    excel_url = base_url + excel_links[0]['href']
-                    print(f"表1-1からExcelリンクを見つけました")
-                    break
-        if excel_url:
+    # 方法1: 表番号1-1かつ周期が月次のレコードを探す
+    # 表番号は完全一致で比較する。部分一致だと 11-1 や 21-1 を誤って拾う。
+    # 周期の判定は必須。1-1には月次・年平均・年度平均の3レコードがあり、
+    # これを見ないと年平均の統計表を掴む可能性がある。
+    for article in articles:
+        if extract_table_number(article) != '1-1':
+            continue
+        if not has_cycle(article, '月次'):
+            continue
+        link = find_excel_link(article)
+        if link and link.get('href'):
+            excel_url = base_url + link['href']
+            print(f"表1-1（月次）からExcelリンクを見つけました")
             break
-    
-    # 方法2: 中分類指数の行からExcelリンクを探す
+
+    # 方法2: 統計表名が中分類指数で周期が月次のレコードを探す
     if not excel_url:
-        for link in soup.select('a.stat-icon_0.js-dl'):
-            parent_row = link.find_parent('tr')
-            if parent_row and '中分類指数' in parent_row.text:
+        for article in articles:
+            if '中分類指数' not in article.get_text():
+                continue
+            if not has_cycle(article, '月次'):
+                continue
+            link = find_excel_link(article)
+            if link and link.get('href'):
                 excel_url = base_url + link['href']
-                print(f"中分類指数のExcelリンクを見つけました")
+                print(f"中分類指数（月次）のExcelリンクを見つけました")
                 break
 
     # 見つからない場合はここで失敗させる。
@@ -273,7 +366,8 @@ def download_cpi_data(year=None, month=None):
             print(f"ダウンロード中にエラーが発生しました: {e}")
     else:
         print("ダウンロードリンクが見つかりませんでした")
-    
+        dump_page_structure(soup)
+
     return None
 
 if __name__ == "__main__":
