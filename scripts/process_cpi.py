@@ -1,7 +1,32 @@
 import pandas as pd
 import os
 import re
+import sys
 from datetime import datetime, timedelta
+
+def is_safe_to_overwrite(output_csv, new_row_count):
+    """既存の出力CSVより行数が減る場合はFalseを返す。
+
+    2026-06-08の事故では、収集元が別の統計表に化けた結果、
+    650行あった前年同月比データが13か月分短いもので上書きされた。
+    時系列データは行数が減ることは通常ないため、減少を異常として扱う。
+    """
+    if not os.path.exists(output_csv):
+        return True
+
+    try:
+        existing_rows = len(pd.read_csv(output_csv))
+    except Exception as e:
+        print(f"既存CSVの読み込みに失敗したため上書きを許可します: {e}")
+        return True
+
+    if new_row_count < existing_rows:
+        print(f"上書きを中止します: {output_csv}")
+        print(f"  既存 {existing_rows} 行 -> 新規 {new_row_count} 行 と行数が減少しています")
+        print(f"  収集元が想定と異なる統計表になっている可能性があります")
+        return False
+
+    return True
 
 def transform_cpi_csv(input_csv, output_csv, data_type="前年同月比"):
     """
@@ -37,16 +62,25 @@ def transform_cpi_csv(input_csv, output_csv, data_type="前年同月比"):
     print(f"データ開始行: {start_row}, 時間軸コード列インデックス: {time_col_index}")
     
     # 「総合」列のインデックスを見つける
+    # 見出しが何行目に来るかはファイルによって変わるため、
+    # データ開始行より上のヘッダー部全体を探索する。
+    # （旧実装は start_row-2 の1行だけを見ており、外れると12列目を決め打ちしていた）
     total_col_index = None
-    for j, val in enumerate(df.iloc[start_row-2]):  # 類・品目の行
-        if isinstance(val, str) and '総合' in str(val):
-            total_col_index = j
+    for i in range(start_row):
+        for j, val in enumerate(df.iloc[i]):
+            if isinstance(val, str) and val.strip() == '総合':
+                total_col_index = j
+                print(f"総合列を検出しました: 行{i}, 列{j}")
+                break
+        if total_col_index is not None:
             break
-    
+
     if total_col_index is None:
-        print("総合列が見つかりませんでした。12列目を使用します")
-        total_col_index = 12  # デフォルト値
-    
+        # 以前はここで12列目を決め打ちしていたが、それでは別系列の値を
+        # 「総合」として書き出してしまうため、失敗として扱う
+        print("総合列が見つかりませんでした。CSVの構造が想定と異なります")
+        return False
+
     print(f"総合列インデックス: {total_col_index}")
     
     # データの抽出
@@ -92,18 +126,30 @@ def transform_cpi_csv(input_csv, output_csv, data_type="前年同月比"):
         column_name: total_values
     })
     
+    print(f"抽出したデータ数: {len(result_df)}")
+
+    # 抽出0件は失敗として扱う。
+    # 以前は空のDataFrameをそのまま書き出してTrueを返していたため、
+    # ヘッダーだけのCSVが下流に流れていた。
+    if len(result_df) == 0:
+        print(f"データを1件も抽出できませんでした: {input_csv}")
+        return False
+
+    # 既存の出力より行数が減る場合は上書きしない。
+    # 収集元が別の統計表に化けた場合に、正常なデータが失われるのを防ぐ。
+    if not is_safe_to_overwrite(output_csv, len(result_df)):
+        return False
+
     # CSVに保存
     result_df.to_csv(output_csv, index=False, encoding='utf-8')
     print(f"変換完了: {output_csv}")
-    print(f"抽出したデータ数: {len(result_df)}")
-    
+
     # 最初と最後の行を表示
-    if len(result_df) > 0:
-        print("\n最初の5行:")
-        print(result_df.head(5).to_string())
-        print("\n最後の5行:")
-        print(result_df.tail(5).to_string())
-    
+    print("\n最初の5行:")
+    print(result_df.head(5).to_string())
+    print("\n最後の5行:")
+    print(result_df.tail(5).to_string())
+
     return True
 
 def merge_cpi_data(yoy_csv, index_csv, output_csv):
@@ -258,3 +304,14 @@ if __name__ == "__main__":
         merge_cpi_data(output_yoy_csv, output_index_csv, output_merged_csv)
     else:
         print("\n前年同月比と指数の両方のデータが揃っていないため、結合処理はスキップされました")
+
+    # 処理に失敗した場合は異常終了させる。
+    # 以前は常に終了コード0で終わっていたため、Actionsが緑のまま
+    # 壊れたデータがcommitされていた。
+    if not yoy_success:
+        print("\n前年同月比データの処理に失敗しました")
+    if not index_success:
+        print("指数データの処理に失敗しました")
+
+    if not (yoy_success and index_success):
+        sys.exit(1)

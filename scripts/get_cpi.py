@@ -31,10 +31,30 @@ def get_two_months_ago():
     
     return two_months_ago.year, two_months_ago.month
 
+# e-Statの月コード生成関数
+def generate_month_code(month):
+    """e-Statのmonthパラメータを生成する。
+
+    形式は {半期}{四半期}{四半期の開始月}{四半期の終了月}{対象月} の8桁。
+      1月 -> 11010301   4月 -> 12040604   7月 -> 23070907   10月 -> 24101210
+      3月 -> 11010303   6月 -> 12040606   9月 -> 23070909   12月 -> 24101212
+
+    四半期のプレフィックスを 110103 に決め打ちすると1〜3月しか正しい値にならず、
+    4〜12月は存在しない月コードになって検索結果0件が返る。
+    """
+    if not 1 <= month <= 12:
+        raise ValueError(f"月の値が不正です: {month}")
+
+    quarter = (month - 1) // 3 + 1
+    half = (quarter - 1) // 2 + 1
+    start_month = (quarter - 1) * 3 + 1
+    end_month = quarter * 3
+
+    return f'{half}{quarter}{start_month:02d}{end_month:02d}{month:02d}'
+
 # 特定の年月のURL生成関数
 def generate_url(year, month):
-    # e-Statの月コードは1月=11010301, 2月=11010302, ...
-    month_code = f'1101030{month}'
+    month_code = generate_month_code(month)
     return f'https://www.e-stat.go.jp/stat-search/files?page=1&layout=datalist&toukei=00200573&tstat=000001150147&cycle=1&year={year}0&month={month_code}&tclass1=000001150149&result_back=1&tclass2val=0'
 
 # ファイルをダウンロードする関数
@@ -47,6 +67,38 @@ def download_file(url, filename):
         for chunk in response.iter_content(chunk_size=8192):
             file.write(chunk)
     return file_path
+
+# ダウンロードしたExcelが目的の年月の月次データか検証する関数
+def verify_excel_contents(excel_file, year, month):
+    """ブックのどこかに「{year}年{month}月」が含まれることを確認する。
+
+    e-Statのリンク構造が変わって別の統計表を掴んだ場合、ここで弾いて
+    既存のCSVを上書きさせない。
+    """
+    expected = f'{year}年{month}月'
+    try:
+        xl = pd.ExcelFile(excel_file, engine='openpyxl')
+    except Exception as e:
+        print(f"Excelファイルを開けませんでした: {e}")
+        return False
+
+    print(f"検証: ブック内に「{expected}」が存在するか確認します")
+    print(f"シート名一覧: {xl.sheet_names}")
+
+    for sheet_name in xl.sheet_names:
+        try:
+            df = xl.parse(sheet_name, header=None)
+        except Exception as e:
+            print(f"シート '{sheet_name}' の読み込みに失敗: {e}")
+            continue
+
+        if df.astype(str).apply(lambda col: col.str.contains(expected, regex=False)).any().any():
+            print(f"検証OK: シート '{sheet_name}' に「{expected}」を確認しました")
+            return True
+
+    print(f"検証NG: ブック内に「{expected}」が見つかりませんでした。")
+    print(f"意図した統計表と異なるファイルの可能性があるため、CSVは更新しません。")
+    return False
 
 # 複数のシートをそれぞれCSVに変換する関数
 def convert_excel_to_csv(excel_file, base_name):
@@ -124,10 +176,26 @@ def download_cpi_data(year=None, month=None):
     
     # HTMLを解析
     soup = BeautifulSoup(response.content, 'html.parser')
-    
-    # Excelダウンロードリンクを検索（複数の方法）
+
+    # 検索結果0件のページを検出する
+    # 月コードが不正な場合、e-Statはエラーではなくこのページを200で返す
+    page_text = soup.get_text()
+    if '該当する統計データはありませんでした' in page_text or '0件のデータ' in page_text:
+        print(f"検索結果が0件でした。指定した年月（{year}年{month}月）が未公表か、")
+        print(f"URLパラメータが不正な可能性があります。")
+        return None
+
+    # 取得したページが目的の年月のものか確認する
+    page_title = soup.title.get_text(strip=True) if soup.title else ''
+    print(f"ページタイトル: {page_title}")
+    if f'{year}年{month}月' not in page_title:
+        print(f"ページタイトルに「{year}年{month}月」が含まれていません。")
+        print(f"意図した年月と異なるページを取得している可能性があります。")
+        return None
+
+    # Excelダウンロードリンクを検索
     excel_url = None
-    
+
     # 方法1: 表1-1の中分類指数を探す
     tables = soup.find_all('table')
     for table in tables:
@@ -135,9 +203,11 @@ def download_cpi_data(year=None, month=None):
         for row in rows:
             # 表番号1-1を探す
             table_num = row.find('td', class_='stat-table_number')
-            if table_num and '1-1' in table_num.text.strip():
+            if table_num and table_num.text.strip() == '1-1':
                 # Excelリンクを探す
-                excel_links = row.find_all('a', class_='stat-dl_icon stat-icon_0 stat-icon_format js-dl stat-download_icon_left')
+                # クラスの完全一致ではなく、EXCEL種別(stat-icon_0)とダウンロード(js-dl)の
+                # 2クラスで絞る。クラスの増減や順序変更に影響されない。
+                excel_links = row.select('a.stat-icon_0.js-dl')
                 if excel_links:
                     excel_url = base_url + excel_links[0]['href']
                     print(f"表1-1からExcelリンクを見つけました")
@@ -145,40 +215,19 @@ def download_cpi_data(year=None, month=None):
         if excel_url:
             break
     
-    # 方法2: すべてのExcelリンクから探す
+    # 方法2: 中分類指数の行からExcelリンクを探す
     if not excel_url:
-        # すべてのExcelダウンロードリンクを検索
-        excel_links = soup.find_all('a', class_='stat-dl_icon stat-icon_0 stat-icon_format js-dl stat-download_icon_left')
-        
-        if excel_links:
-            # 中分類指数のリンクを探す（テキストや親要素から判断）
-            for link in excel_links:
-                parent_row = link.find_parent('tr')
-                if parent_row and ('中分類指数' in parent_row.text or '1-1' in parent_row.text):
-                    excel_url = base_url + link['href']
-                    print(f"中分類指数のExcelリンクを見つけました")
-                    break
-            
-            # それでも見つからなければ、最初のリンクを使用
-            if not excel_url and excel_links:
-                excel_url = base_url + excel_links[0]['href']
-                print(f"最初のExcelリンクを使用します")
-    
-    # 方法3: 2025年2月で動作した直接URL（最終手段）
-    if not excel_url:
-        # 月に基づいてIDを予測する
-        base_id = "000040254992"  # 2025年2月の基準ID
-        month_diff = month - 2  # 2月からの差分
-        
-        if month_diff != 0:
-            print(f"直接リンクが見つからないため、月差分 {month_diff} を使用してIDを予測します")
-            predicted_id = str(int(base_id) + month_diff).zfill(len(base_id))
-        else:
-            predicted_id = base_id
-        
-        excel_url = f"{base_url}/stat-search/file-download?statInfId={predicted_id}&fileKind=0"
-        print(f"予測されたURL: {excel_url}")
-    
+        for link in soup.select('a.stat-icon_0.js-dl'):
+            parent_row = link.find_parent('tr')
+            if parent_row and '中分類指数' in parent_row.text:
+                excel_url = base_url + link['href']
+                print(f"中分類指数のExcelリンクを見つけました")
+                break
+
+    # 見つからない場合はここで失敗させる。
+    # 以前はここでstatInfIdを算術的に予測するフォールバックがあったが、
+    # e-StatのstatInfIdは連番ではないため無関係な統計表を掴み、
+    # 正常なデータを古いもので上書きする事故を起こしていた。
     if excel_url:
         # ファイル名を設定
         excel_filename = f"CPI_中分類指数_全国_月次.xlsx"
@@ -192,7 +241,13 @@ def download_cpi_data(year=None, month=None):
             # Excelファイルをダウンロード
             excel_file = download_file(excel_url, excel_filename)
             print(f"ダウンロード完了: {excel_file}")
-            
+
+            # CSVを書き出す前に、中身が目的の年月の月次データか検証する。
+            # 検証に失敗した場合は既存のCSVを一切上書きせずに終了する。
+            if not verify_excel_contents(excel_file, year, month):
+                os.remove(excel_file)
+                return None
+
             # 複数のシートをCSVに変換
             print(f"すべてのシートをCSVに変換しています...")
             csv_files = convert_excel_to_csv(excel_file, base_csv_name)
@@ -212,8 +267,8 @@ def download_cpi_data(year=None, month=None):
                 
                 return csv_files
             else:
-                print("CSV変換に失敗しました。Excelファイルをそのまま保持します。")
-                return [excel_file]
+                print("CSV変換に失敗しました。")
+                return None
         except Exception as e:
             print(f"ダウンロード中にエラーが発生しました: {e}")
     else:
@@ -250,3 +305,4 @@ if __name__ == "__main__":
                 print(f"\n★ 前月比のデータ: {file_path}")
     else:
         print("データの取得に失敗しました")
+        sys.exit(1)

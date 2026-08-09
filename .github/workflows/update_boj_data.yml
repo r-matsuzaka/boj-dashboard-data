@@ -27,37 +27,51 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
+    # 各統計は互いに独立しているため、1つが失敗しても残りは取得を続ける。
+    # 失敗の有無は最後の "Check for failures" ステップで判定し、ジョブを赤くする。
     - name: Run BOJ data download scripts
+      id: boj
+      continue-on-error: true
       run: |
         python scripts/get_boj_unsecured_call_rate.py
         python scripts/get_boj_corporate_price_index.py
-        
+
     - name: Run CPI data download and processing scripts
+      id: cpi
+      continue-on-error: true
       run: |
         python scripts/get_cpi.py
         python scripts/process_cpi.py
-        
+
     - name: Run Payroll data download and processing scripts
+      id: payroll
+      continue-on-error: true
       run: |
         python scripts/get_payroll.py
         python scripts/process_payroll.py
-        
+
     - name: Run Real Estate data download and processing
+      id: realestate
+      continue-on-error: true
       run: |
         python scripts/get_real_estate.py
         python scripts/process_real_estate.py
-        
+
     - name: Run DI data download and processing
+      id: di
+      continue-on-error: true
       run: |
         python scripts/get_di.py
         python scripts/process_di.py
-        
+
     - name: Run FRED GDP data download and processing
+      id: gdp
+      continue-on-error: true
       env:
         FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
       run: |
         python scripts/get_fred_gdp.py
-        
+
     - name: List files in data directory
       run: |
         ls -la data/
@@ -77,3 +91,24 @@ jobs:
         git config --local user.name "GitHub Action"
         git add data/*.csv data/*.xlsx
         git diff --quiet && git diff --staged --quiet || (git commit -m "Update economic data $(date +'%Y-%m-%d')" && git push)
+
+    # いずれかの収集が失敗していればジョブを失敗扱いにする。
+    # これがないと、取得に失敗してもワークフローが緑のままになり、
+    # 障害に気づけない。
+    - name: Check for failures
+      if: >
+        steps.boj.outcome == 'failure' ||
+        steps.cpi.outcome == 'failure' ||
+        steps.payroll.outcome == 'failure' ||
+        steps.realestate.outcome == 'failure' ||
+        steps.gdp.outcome == 'failure' ||
+        steps.di.outcome == 'failure'
+      run: |
+        echo "以下の収集ステップが失敗しました:"
+        echo "  BOJ:         ${{ steps.boj.outcome }}"
+        echo "  CPI:         ${{ steps.cpi.outcome }}"
+        echo "  Payroll:     ${{ steps.payroll.outcome }}"
+        echo "  Real Estate: ${{ steps.realestate.outcome }}"
+        echo "  DI:          ${{ steps.di.outcome }}"
+        echo "  GDP:         ${{ steps.gdp.outcome }}"
+        exit 1
